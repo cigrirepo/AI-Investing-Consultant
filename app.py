@@ -155,7 +155,7 @@ Debt: {info.get('totalDebt')}"""
 st.set_page_config(page_title="AI Financial Insights Dashboard", layout="wide")
 st.title("AI-Powered Financial Insights Dashboard")
 
-ticker = st.text_input("Enter a stock ticker (e.g., SNOW, AAPL, MSFT):", value="SNOW")
+ticker = st.text_input("Enter a stock ticker (e.g., SNOW, AAPL, MSFT):", value="AAPL")
 if ticker:
     company = get_company_data(ticker)
     info = company['info']
