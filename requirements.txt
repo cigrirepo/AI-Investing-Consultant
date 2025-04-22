@@ -1,9 +1,12 @@
-streamlit
-yfinance
-pandas
-plotly
-prophet
-textblob
-requests
-openai
-sqlite3‑wrapper‑if‑needed
+# ----- core app dependencies -----
+streamlit>=1.32
+yfinance>=0.2.36
+pandas>=2.2.2
+plotly>=5.20.0
+prophet>=1.1.5          # current name for fbprophet
+textblob>=0.17.1
+requests>=2.31.0
+openai>=1.14.2           # provides openai.OpenAI()
+
+# ----- optional: nicer tracebacks in the logs -----
+rich>=14.0.0
