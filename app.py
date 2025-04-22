@@ -1,44 +1,44 @@
-# app.py  ── AI‑Powered Financial Insights Dashboard
+# app.py  ── AI‑Powered Financial Insights Dashboard
 # ================================================
+
 import os
 import sqlite3
-from datetime import datetime
+from typing import List, Tuple
 
 import yfinance as yf
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from prophet import Prophet
-from textblob import TextBlob
+from prophet import Prophet                     # pip install prophet
+from textblob import TextBlob                   # pip install textblob
 import requests
-import openai
-from openai import OpenAI
+from openai import OpenAI                       # pip install openai
 import streamlit as st
 
-# ── Streamlit Page Config ──────────────────────────────────────────────
+# ── Streamlit Page Config ────────────────────────────────────────────
 st.set_page_config(page_title="AI Financial Insights Dashboard", layout="wide")
 st.title("AI‑Powered Financial Insights Dashboard")
 
-# ── API KEYS (set securely in code or via Streamlit → Secrets) ─────────
-openai.api_key = os.getenv("OPENAI_API_KEY")                # expects secret
-news_api_key   = "166012e1c17248b8b0ff75d114420a72"         # ← YOUR NewsAPI key
+# ── Keys / Secrets ───────────────────────────────────────────────────
+openai.api_key = os.getenv("OPENAI_API_KEY")           # set in Streamlit Secrets
+news_api_key   = "166012e1c17248b8b0ff75d114420a72"    # <— your NewsAPI key
 
-# ── Persistent Watchlist (SQLite) ──────────────────────────────────────
+# ── SQLite Watchlist ────────────────────────────────────────────────
 conn = sqlite3.connect("watchlist.db", check_same_thread=False)
 cur  = conn.cursor()
 cur.execute("CREATE TABLE IF NOT EXISTS watchlist(ticker TEXT PRIMARY KEY)")
 conn.commit()
 
-def add_to_watchlist(t: str):         # helper
-    cur.execute("INSERT OR IGNORE INTO watchlist VALUES (?)", (t.upper(),))
+def add_to_watchlist(ticker: str) -> None:
+    cur.execute("INSERT OR IGNORE INTO watchlist VALUES (?)", (ticker.upper(),))
     conn.commit()
 
-def get_watchlist() -> list[str]:     # helper
+def get_watchlist() -> List[str]:
     return [r[0] for r in cur.execute("SELECT ticker FROM watchlist")]
 
-# ── Data Fetch & Pre‑processing (cached) ───────────────────────────────
+# ── Data Loader (cached) ─────────────────────────────────────────────
 @st.cache_data(show_spinner=False)
-def get_company_data(ticker: str):
+def get_company_data(ticker: str) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
     stock = yf.Ticker(ticker)
     info  = stock.info
     fin   = stock.quarterly_financials.T.copy()
@@ -48,18 +48,20 @@ def get_company_data(ticker: str):
     fin["QoQ Rev %"]      = fin["Total Revenue"].pct_change(1) * 100
     fin["Gross Margin %"] = fin["Gross Profit"] / fin["Total Revenue"] * 100
     fin["Op Margin %"]    = fin["Operating Income"] / fin["Total Revenue"] * 100
-    if "Free Cash Flow" in fin:
+    if "Free Cash Flow" in fin.columns:
         fin["FCF Margin %"] = fin["Free Cash Flow"] / fin["Total Revenue"] * 100
 
     return info, fin, hist
 
-# ── LLM Investment Thesis ─────────────────────────────────────────────
+# ── LLM Investment Thesis ───────────────────────────────────────────
 def generate_investment_thesis(ticker: str, info: dict) -> str:
     client = OpenAI(api_key=openai.api_key)
+
     prompt = f"""
 You are a financial analyst. Write a concise 2‑paragraph investment thesis for {ticker},
-incorporating current revenue figures, margin profiles, and valuation metrics.
-After the thesis, add three quantitative bullet points and a text matrix of recent YoY revenue growth.
+incorporating current revenue, margins, and valuation metrics.
+Follow with 3 quantitative bullet points and a text matrix of recent YoY revenue growth.
+
 Business Summary: {info.get('longBusinessSummary')}
 Market Cap: {info.get('marketCap')}
 Revenue (TTM): {info.get('totalRevenue')}
@@ -68,32 +70,36 @@ EBITDA Margin: {round((info.get('ebitda') or 0)/(info.get('totalRevenue') or 1)*
 Trailing P/E: {info.get('trailingPE')}
 Forward P/E: {info.get('forwardPE')}
 EPS (TTM): {info.get('trailingEps')}
-Sector: {info.get('sector')}
-Industry: {info.get('industry')}
+Sector: {info.get('sector')} | Industry: {info.get('industry')}
 """
+
     resp = client.chat.completions.create(
         model="gpt-4",
         messages=[
-            {"role":"system","content":"You are a seasoned investment analyst."},
-            {"role":"user",  "content":prompt}
+            {"role": "system", "content": "You are a seasoned investment analyst."},
+            {"role": "user",   "content": prompt}
         ],
         temperature=0.7,
         max_tokens=600
     )
     return resp.choices[0].message.content
 
-# ── Plot Helpers ──────────────────────────────────────────────────────
-def plot_revenue_and_growth(fin_df: pd.DataFrame):
+# ── Plot Helpers ────────────────────────────────────────────────────
+def plot_revenue_and_growth(fin_df: pd.DataFrame) -> None:
     df = fin_df.copy()
-    df.index = df.index.astype(str)
+    df.index = df.index.astype(str)        # PeriodIndex → str for Plotly
+
     fig = px.bar(df, x=df.index, y="Total Revenue", labels={"Total Revenue":"Revenue ($)"})
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df["YoY Rev %"], name="YoY Rev %", yaxis="y2", line=dict(color="orange")
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=df.index, y=df["YoY Rev %"], name="YoY Rev %", yaxis="y2",
+            line=dict(color="orange")
+        )
+    )
     fig.update_layout(yaxis2=dict(overlaying="y", side="right", title="YoY %"))
     st.plotly_chart(fig, use_container_width=True)
 
-def plot_stock_price_with_sma(hist_df: pd.DataFrame):
+def plot_stock_price_with_sma(hist_df: pd.DataFrame) -> None:
     df = hist_df.copy()
     df["50SMA"]  = df["Close"].rolling(50).mean()
     df["200SMA"] = df["Close"].rolling(200).mean()
@@ -101,29 +107,110 @@ def plot_stock_price_with_sma(hist_df: pd.DataFrame):
                   labels={"value":"Price (USD)", "variable":"Series"})
     st.plotly_chart(fig, use_container_width=True)
 
-# ── Peer Comparables ────────────────────────────────────────────────
-def show_peer_comparison(tickers: list[str]) -> None:
-    """
-    Display a formatted comparables table for the focus ticker and its peers.
-    """
-    rows: list[dict] = []
+# ── Peer Comparables Table ──────────────────────────────────────────
+def show_peer_comparison(tickers: List[str]) -> None:
+    rows = []
     for t in tickers:
         try:
             inf = yf.Ticker(t).info
             mc  = inf.get("marketCap") or 0
-            ebt = inf.get("ebitda")     or 0
+            ebt = inf.get("ebitda")    or 0
             rows.append({
                 "Ticker": t,
                 "Market Cap ($B)": f"{mc/1e9:,.2f}",
-                "P/E (LTM)":  f"{inf.get('trailingPE', 0):.2f}" if inf.get("trailingPE")  else "N/A",
-                "P/E (NTM)":  f"{inf.get('forwardPE',  0):.2f}" if inf.get("forwardPE")   else "N/A",
+                "P/E (LTM)":  f"{inf.get('trailingPE',0):.2f}" if inf.get("trailingPE") else "N/A",
+                "P/E (NTM)":  f"{inf.get('forwardPE',0):.2f}"  if inf.get("forwardPE")  else "N/A",
                 "EV/EBITDA":  f"{inf.get('enterpriseValue',0)/ebt:,.2f}" if ebt else "N/A",
                 "FCF Yield (%)": (
-                    f"{inf.get('freeCashflow', 0)/mc*100:,.2f}"
-                    if inf.get('freeCashflow') and mc else "N/A"
-                ),
+                    f"{inf.get('freeCashflow',0)/mc*100:,.2f}" if inf.get('freeCashflow') and mc else "N/A"
+                )
             })
         except Exception:
             continue
-
     st.dataframe(pd.DataFrame(rows), use_container_width=True)
+
+# ── Prophet Forecast ───────────────────────────────────────────────
+def forecast_stock_price(hist_df: pd.DataFrame) -> None:
+    df = hist_df.reset_index()[["Date","Close"]].rename(columns={"Date":"ds","Close":"y"})
+    df["ds"] = pd.to_datetime(df["ds"]).dt.tz_localize(None)
+    model = Prophet(daily_seasonality=True)
+    model.fit(df)
+    future = model.make_future_dataframe(periods=30)
+    fc     = model.predict(future)
+    fig    = model.plot(fc)
+    st.pyplot(fig)
+
+# ── News Sentiment ─────────────────────────────────────────────────
+def get_news_sentiment(ticker: str) -> pd.DataFrame:
+    url  = f"https://newsapi.org/v2/everything?q={ticker}&apiKey={news_api_key}"
+    arts = requests.get(url).json().get("articles", [])[:5]
+    rows = []
+    for art in arts:
+        title = art.get("title","")
+        pol   = TextBlob(title).sentiment.polarity
+        rows.append({
+            "Headline": title,
+            "Polarity": round(pol,2),
+            "Label":   "Positive" if pol>0.1 else "Neutral" if pol>=-0.1 else "Negative"
+        })
+    return pd.DataFrame(rows)
+
+# ── Analyst Q&A ─────────────────────────────────────────────────────
+def ask_analyst_question(question: str, info: dict) -> str:
+    client = OpenAI(api_key=openai.api_key)
+    context = (
+        f"Business Summary: {info.get('longBusinessSummary')}\n"
+        f"Revenue: {info.get('totalRevenue')}\n"
+        f"EBITDA: {info.get('ebitda')}\n"
+        f"Cash: {info.get('totalCash')}\n"
+        f"Debt: {info.get('totalDebt')}"
+    )
+    prompt = f"{context}\n\nQuestion: {question}\nAnswer:"
+    resp = client.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {"role":"system","content":"You are a helpful financial analyst assistant."},
+            {"role":"user",  "content":prompt}
+        ],
+        temperature=0.4,
+        max_tokens=300
+    )
+    return resp.choices[0].message.content
+
+# ── Main UI ─────────────────────────────────────────────────────────
+ticker = st.text_input("Enter ticker (e.g., AAPL):", value="AAPL").upper()
+
+# Only start the heavy work when the user presses the button
+if st.button("Load Data"):
+    try:
+        with st.spinner("Fetching company data…"):
+            info, fin, hist = get_company_data(ticker)
+    except Exception as e:
+        st.error(f"Data fetch failed: {e}")
+        st.stop()
+
+    # ========== DASHBOARD SECTIONS ==========
+    st.subheader("Investment Thesis")
+    with st.spinner("Generating thesis…"):
+        st.write(generate_investment_thesis(ticker, info))
+
+    st.subheader("Revenue & YoY Growth")
+    plot_revenue_and_growth(fin)
+
+    st.subheader("Price with 50/200‑day SMA")
+    plot_stock_price_with_sma(hist)
+
+    st.subheader("Peer Comparables")
+    show_peer_comparison([ticker, "CRM", "DDOG", "MDB", "ZS"])
+
+    st.subheader("30‑Day Price Forecast")
+    forecast_stock_price(hist)
+
+    st.subheader("Latest News Sentiment")
+    st.dataframe(get_news_sentiment(ticker), use_container_width=True)
+
+    st.subheader("Ask the Analyst")
+    user_q = st.text_input("Type a financial question:")
+    if user_q:
+        with st.spinner("Analyzing…"):
+            st.write(ask_analyst_question(user_q, info))
