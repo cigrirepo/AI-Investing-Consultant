@@ -29,15 +29,18 @@ def generate_investment_thesis(ticker, info):
     client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     prompt = f"""
 You are a financial analyst. Write a concise 2-paragraph investment thesis for {ticker}, incorporating current revenue figures, margin profiles, and valuation metrics. Ensure the thesis is data-driven, focused, and tailored for an investor audience. After the thesis, summarize the analysis in three concise, quantitative bullet points. Then, build a text-based matrix highlighting recent YoY growth and revenue financials. Emphasize current financial performance, forward growth potential, and key valuation drivers.
+
 Business Summary: {info.get('longBusinessSummary')}
 Market Cap: {info.get('marketCap')}
-Revenue: {info.get('totalRevenue')}
+Revenue (TTM): {info.get('totalRevenue')}
 EBITDA: {info.get('ebitda')}
 EBITDA Margin: {round((info.get('ebitda') or 0) / (info.get('totalRevenue') or 1) * 100, 2)}%
-P/E: {info.get('trailingPE')}
-EPS: {info.get('trailingEps')}
-Sector: {info.get('sector')} | Industry: {info.get('industry')}
-    """
+P/E Ratio: {info.get('trailingPE')}
+Forward P/E: {info.get('forwardPE')}
+EPS (TTM): {info.get('trailingEps')}
+Sector: {info.get('sector')}
+Industry: {info.get('industry')}
+"""
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
@@ -45,7 +48,7 @@ Sector: {info.get('sector')} | Industry: {info.get('industry')}
             {"role": "user", "content": prompt}
         ],
         temperature=0.7,
-        max_tokens=400
+        max_tokens=600
     )
     return response.choices[0].message.content
 
@@ -101,7 +104,7 @@ def get_peer_comparison(tickers):
                 "EBITDA Margin (%)": round((ebitda / revenue) * 100, 2),
                 "Sector": info.get("sector")
             })
-        except:
+        except Exception:
             continue
     return pd.DataFrame(data).fillna("N/A")
 
@@ -130,18 +133,13 @@ def get_news_sentiment(ticker):
 
 def ask_analyst_question(question, info):
     client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    context = f"""
-You are a financial analyst assistant. Use the data below to answer:
+    context = f"""You are a financial analyst assistant. Use the data below to answer:
 Business Summary: {info.get('longBusinessSummary')}
 Revenue: {info.get('totalRevenue')}
 EBITDA: {info.get('ebitda')}
-Cash: {info.get('totalCash')}
-Debt: {info.get('totalDebt')}
-    """
-    prompt = context + f"
-
-Question: {question}
-Answer:"
+Cash Position: {info.get('totalCash')}
+Debt: {info.get('totalDebt')}"""
+    prompt = context + f"\n\nQuestion: {question}\nAnswer:"
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
@@ -185,4 +183,6 @@ if ticker:
     user_q = st.text_input("Ask a financial question about this company:")
     if user_q:
         with st.spinner("Analyzing..."):
-            st.write(ask_analyst_question(user_q, info))
+-           st.write(ask_analyst_question(user_q, info)),
++           st.write(ask_analyst_question(user_q, info))
+
