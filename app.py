@@ -183,6 +183,4 @@ if ticker:
     user_q = st.text_input("Ask a financial question about this company:")
     if user_q:
         with st.spinner("Analyzing..."):
--           st.write(ask_analyst_question(user_q, info)),
-+           st.write(ask_analyst_question(user_q, info))
-
+            st.write(ask_analyst_question(user_q, info))
