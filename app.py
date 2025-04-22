@@ -255,4 +255,4 @@ if st.button("Load Data"):
     user_q = st.text_input("Type a financial question:")
     if user_q:
         with st.spinner("Analyzing…"):
-            st.write(ask_analyst_question(user_q
+            st.write(ask_analyst_question(user_q)
