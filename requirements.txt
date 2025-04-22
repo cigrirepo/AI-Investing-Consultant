@@ -1,8 +1,9 @@
 streamlit
 yfinance
 pandas
-matplotlib
+plotly
 prophet
 textblob
 requests
 openai
+fpdf
