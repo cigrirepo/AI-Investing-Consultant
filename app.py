@@ -9,9 +9,8 @@ import streamlit as st
 import os
 
 # --- API KEYS ---
-
-openai.api\_key = os.getenv("OPENAI\_API\_KEY")
-news\_api\_key = "166012e1c17248b8b0ff75d114420a72"
+openai.api_key = os.getenv("OPENAI_API_KEY")
+news_api_key = "166012e1c17248b8b0ff75d114420a72"
 
 # --- Helper Functions ---
 
@@ -27,7 +26,7 @@ return {
 }
 
 def generate\_investment\_thesis(ticker, info):
-client = openai.OpenAI(api\_key=os.getenv("OPENAI\_API\_KEY"))
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 prompt = f"""
 You are a financial analyst. Write a concise 2-paragraph investment thesis for {ticker}, using current revenue, margins, and valuation metrics.
 Business Summary: {info.get('longBusinessSummary')}
