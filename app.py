@@ -1,6 +1,5 @@
 # app.py  ── AI‑Powered Financial Insights Dashboard
 # ================================================
-
 import os
 import sqlite3
 from typing import List, Tuple
@@ -9,11 +8,16 @@ import yfinance as yf
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from prophet import Prophet                     # pip install prophet
-from textblob import TextBlob                   # pip install textblob
+from prophet import Prophet
+from textblob import TextBlob
 import requests
-from openai import OpenAI                       # pip install openai
+
+import openai              # ← ADD THIS LINE
+from openai import OpenAI   # keep this; provides the client class
 import streamlit as st
+# ================================================
+# rest of the file unchanged …
+
 
 # ── Streamlit Page Config ────────────────────────────────────────────
 st.set_page_config(page_title="AI Financial Insights Dashboard", layout="wide")
