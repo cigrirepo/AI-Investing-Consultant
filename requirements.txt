@@ -6,4 +6,4 @@ prophet
 textblob
 requests
 openai
-fpdf
+sqlite3‑wrapper‑if‑needed
