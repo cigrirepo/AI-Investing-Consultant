@@ -101,5 +101,29 @@ def plot_stock_price_with_sma(hist_df: pd.DataFrame):
                   labels={"value":"Price (USD)", "variable":"Series"})
     st.plotly_chart(fig, use_container_width=True)
 
-# ── Peer Comparables ──────────────────────────────────────────────────
-def show_peer_comparison(t
+# ── Peer Comparables ────────────────────────────────────────────────
+def show_peer_comparison(tickers: list[str]) -> None:
+    """
+    Display a formatted comparables table for the focus ticker and its peers.
+    """
+    rows: list[dict] = []
+    for t in tickers:
+        try:
+            inf = yf.Ticker(t).info
+            mc  = inf.get("marketCap") or 0
+            ebt = inf.get("ebitda")     or 0
+            rows.append({
+                "Ticker": t,
+                "Market Cap ($B)": f"{mc/1e9:,.2f}",
+                "P/E (LTM)":  f"{inf.get('trailingPE', 0):.2f}" if inf.get("trailingPE")  else "N/A",
+                "P/E (NTM)":  f"{inf.get('forwardPE',  0):.2f}" if inf.get("forwardPE")   else "N/A",
+                "EV/EBITDA":  f"{inf.get('enterpriseValue',0)/ebt:,.2f}" if ebt else "N/A",
+                "FCF Yield (%)": (
+                    f"{inf.get('freeCashflow', 0)/mc*100:,.2f}"
+                    if inf.get('freeCashflow') and mc else "N/A"
+                ),
+            })
+        except Exception:
+            continue
+
+    st.dataframe(pd.DataFrame(rows), use_container_width=True)
