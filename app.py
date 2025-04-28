@@ -125,34 +125,49 @@ SP500_URL = (
     "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/master/data/constituents.csv"
 )
 
+FALLBACK_PEERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "META"]  # used only if fetch fails
+
+
 @st.cache_data(show_spinner=False)
 def get_sp500() -> pd.DataFrame:
-    return pd.read_csv(SP500_URL)
+    """
+    Download the S&P-500 constituents list.
+    Return an empty DF on any failure.
+    """
+    try:
+        df = pd.read_csv(SP500_URL)
+        df.columns = df.columns.str.title()  # normalize caps
+        return df
+    except Exception:
+        return pd.DataFrame()
+
 
 def show_peer_comparison(focus_ticker: str, n_peers: int = 5) -> None:
     """
-    Choose peers from the same S&P‑500 sector, sorted by market‑cap.
+    Build comparables table; falls back to a static list if online data unavailable.
     """
     try:
         focus_info = yf.Ticker(focus_ticker).info
-        sector = focus_info.get("sector")
+        sector     = focus_info.get("sector")
     except Exception:
-        st.warning("Could not fetch peer data.")
-        return
+        sector = None
 
-    sp_df  = get_sp500()
-    peers  = sp_df[sp_df["Sector"] == sector]["Symbol"].tolist()
-    peers  = [t for t in peers if t != focus_ticker]
+    sp_df = get_sp500()
 
-    # Top peers by market‑cap
-    peers_sorted = sorted(
-        peers,
-        key=lambda x: yf.Ticker(x).info.get("marketCap", 0),
-        reverse=True
-    )[:n_peers]
+    # choose peers
+    if (
+        sector
+        and not sp_df.empty
+        and {"Sector", "Symbol"}.issubset(sp_df.columns)
+    ):
+        sector_peers = sp_df.loc[sp_df["Sector"] == sector, "Symbol"].tolist()
+        peers = [t for t in sector_peers if t != focus_ticker][: n_peers]
+    else:
+        peers = FALLBACK_PEERS[: n_peers]
 
-    tickers = [focus_ticker] + peers_sorted
-    rows    = []
+    tickers = [focus_ticker] + peers
+    rows = []
+
     for t in tickers:
         try:
             inf = yf.Ticker(t).info
@@ -171,7 +186,9 @@ def show_peer_comparison(focus_ticker: str, n_peers: int = 5) -> None:
             })
         except Exception:
             continue
+
     st.dataframe(pd.DataFrame(rows), use_container_width=True)
+
 
 # ── Prophet Forecast ───────────────────────────────────────────────
 def forecast_stock_price(hist_df: pd.DataFrame) -> None:
