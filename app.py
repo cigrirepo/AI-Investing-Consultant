@@ -41,17 +41,6 @@ with col_logo:
     else:
         st.warning("⚠️ senzu_logo.png not found in repo")
 
-with col_brand:
-    st.markdown(
-        """
-        <div style="font-size:1rem; color:#AAA; white-space:nowrap; overflow-x:auto;">
-          AI-driven financial analysis for investors & analysts — explore revenue & margin trends, valuation metrics, peer benchmarks, 30-day forecasts, and ask your own analyst-style questions.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-st.markdown("---")
 
 
 
