@@ -29,31 +29,31 @@ st.set_page_config(page_title="Senzu Financial Insights", layout="wide")
 from PIL import Image
 from pathlib import Path
 
-# ── Branding & Logo ───────────────────────────────────────────────────
+# ── Top-Left Branding & Logo ───────────────────────────────────────
 logo_path = Path(__file__).parent / "senzu_logo.png"
-col1, col2, col3 = st.columns([0.1, 0.2, 0.7])  # narrow left gutter, narrow center, rest
+col_logo, col_content = st.columns([1, 8], gap="small")
 
-with col1:
+with col_logo:
     if logo_path.exists():
         logo = Image.open(logo_path)
-        st.image(logo, width=80, use_column_width=False)
-        st.markdown(
-            """
-            <div style="margin-top:-16px; line-height:1.2;">
-                <strong style="font-size:24px; vertical-align:top;">Senzu</strong>
-            </div>
-            <div style="font-size:14px; color:#CCC; margin-top:-4px;">
-                An AI-driven financial analysis platform designed for investors and analysts.<br>
-                Quickly explore revenue trends, margin profiles, valuation metrics,<br>
-                peer benchmarks, 30-day forecasts, and engage in interactive analyst Q&A.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        st.image(logo, width=64, use_column_width=False)
     else:
         st.warning("⚠️ senzu_logo.png not found")
 
-
+with col_content:
+    st.markdown(
+        """
+        <h2 style="margin:0; padding:0;">Senzu</h2>
+        <p style="margin:0; font-size:14px; color:#AAA; line-height:1.2;">
+            AI-driven financial analysis for investors and analysts.  
+            Explore revenue & margin trends, valuation metrics, peer benchmarks,  
+            30-day forecasts, and ask your own analyst-style questions.
+        </p>
+        """,
+        unsafe_allow_html=True
+    )
+    
+st.markdown("---")  # thin separator
 
 
 # ── Keys / Secrets ─────────────────────────────────────────────────
