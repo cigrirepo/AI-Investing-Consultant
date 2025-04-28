@@ -26,38 +26,32 @@ if "loaded" not in st.session_state:
 # ── Streamlit Page Config ───────────────────────────────────────────
 st.set_page_config(page_title="Senzu Financial Insights", layout="wide")
 
-import base64
+from PIL import Image
 from pathlib import Path
 
+# ── Branding & Logo ───────────────────────────────────────────────────
 logo_path = Path(__file__).parent / "senzu_logo.png"
-if logo_path.exists():
-    logo_bytes = logo_path.read_bytes()
-    logo_b64   = base64.b64encode(logo_bytes).decode()
+col1, col2, col3 = st.columns([0.1, 0.2, 0.7])  # narrow left gutter, narrow center, rest
 
-    st.markdown(
-        f"""
-        <div style="display:flex;align-items:flex-start;margin-bottom:20px;">
-          <img 
-            src="data:image/png;base64,{logo_b64}"
-            style="width:150px; margin:0; padding:0;"
-          />
-          <div style="
-            margin-left:10px;
-            font-size:16px;
-            color:#CCCCCC;
-            line-height:1.4;
-          ">
-            <strong>Senzu</strong> is an AI-driven financial analysis platform designed for investors and analysts.  
-            Quickly explore company revenue trends, margin profiles, valuation metrics, peer benchmarks,  
-            30-day price forecasts, and engage in an interactive analyst Q&A powered by LLMs.
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-else:
-    st.warning("⚠️ senzu_logo.png not found")
-
+with col1:
+    if logo_path.exists():
+        logo = Image.open(logo_path)
+        st.image(logo, width=80, use_column_width=False)
+        st.markdown(
+            """
+            <div style="margin-top:-16px; line-height:1.2;">
+                <strong style="font-size:24px; vertical-align:top;">Senzu</strong>
+            </div>
+            <div style="font-size:14px; color:#CCC; margin-top:-4px;">
+                An AI-driven financial analysis platform designed for investors and analysts.<br>
+                Quickly explore revenue trends, margin profiles, valuation metrics,<br>
+                peer benchmarks, 30-day forecasts, and engage in interactive analyst Q&A.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.warning("⚠️ senzu_logo.png not found")
 
 
 
