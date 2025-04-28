@@ -1,4 +1,4 @@
-# app.py  ── AI‑Powered Financial Insights Dashboard
+# app.py  ── AI-Powered Financial Insights Dashboard
 # ================================================
 import os
 import sqlite3
@@ -7,14 +7,15 @@ from typing import List, Tuple
 import yfinance as yf
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
+import plotly.graph_objects as go        # needed for Scatter in the revenue plot
 from prophet import Prophet
 from textblob import TextBlob
 import requests
-import openai                # ← now imported before we set the key
+import openai
 from openai import OpenAI
 import streamlit as st
-# ── session defaults ───────────────────────────────────────────────
+
+# ── session defaults ────────────────────────────────────────────────
 if "loaded" not in st.session_state:
     st.session_state.loaded = False
     st.session_state.info   = None
@@ -23,10 +24,10 @@ if "loaded" not in st.session_state:
 
 # ── Streamlit Page Config ───────────────────────────────────────────
 st.set_page_config(page_title="AI Financial Insights Dashboard", layout="wide")
-st.title("AI‑Powered Financial Insights Dashboard")
+st.title("AI-Powered Financial Insights Dashboard")
 
 # ── Keys / Secrets ─────────────────────────────────────────────────
-openai.api_key = os.getenv("OPENAI_API_KEY")          # set in Streamlit Secrets
+openai.api_key = os.getenv("OPENAI_API_KEY")          # stored in Streamlit Secrets
 news_api_key   = "166012e1c17248b8b0ff75d114420a72"   # NewsAPI key
 
 # ── SQLite Watchlist ───────────────────────────────────────────────
@@ -62,7 +63,7 @@ def get_company_data(ticker: str) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
 def generate_investment_thesis(ticker: str, info: dict) -> str:
     client = OpenAI(api_key=openai.api_key)
     prompt = f"""
-You are a financial analyst. Write a concise 2‑paragraph investment thesis for {ticker},
+You are a financial analyst. Write a concise 2-paragraph investment thesis for {ticker},
 incorporating current revenue, margins, and valuation metrics.
 Follow with 3 quantitative bullet points and a text matrix of recent YoY revenue growth.
 
@@ -79,8 +80,8 @@ Sector: {info.get('sector')} | Industry: {info.get('industry')}
     resp = client.chat.completions.create(
         model="gpt-4",
         messages=[
-            {"role":"system","content":"You are a seasoned investment analyst."},
-            {"role":"user",  "content":prompt}
+            {"role": "system", "content": "You are a seasoned investment analyst."},
+            {"role": "user",   "content": prompt}
         ],
         temperature=0.7,
         max_tokens=600
@@ -89,87 +90,62 @@ Sector: {info.get('sector')} | Industry: {info.get('industry')}
 
 # ── Plot Helpers ───────────────────────────────────────────────────
 def plot_revenue_and_growth(fin_df: pd.DataFrame) -> None:
-    """
-    Bar = revenue, Line = YoY %. Uses real fiscal quarters for the x-axis
-    and only draws the YoY line where data exist.
-    """
-    # Ensure proper order and remove missing revenue rows
-    df = (
-        fin_df[["Total Revenue"]]
-        .dropna()
-        .copy()
-    )
-
-    # convert PeriodIndex -> Timestamp (end of quarter) for Plotly
+    """Quarterly revenue bars + YoY % line (right axis)."""
+    df = fin_df[["Total Revenue"]].dropna().copy()
     if isinstance(df.index, pd.PeriodIndex):
-        df.index = df.index.to_timestamp(how="end")
-
-    # Create neat quarter labels e.g. 2024-Q1
-    df["Quarter"] = df.index.to_period("Q").astype(str)
-
-    # Calculate YoY %
+        df.index = df.index.to_timestamp("Q")
+    df["Quarter"]   = df.index.to_period("Q").astype(str)
     df["YoY Rev %"] = df["Total Revenue"].pct_change(4) * 100
 
     fig = px.bar(
-        df,
-        x="Quarter",
-        y="Total Revenue",
+        df, x="Quarter", y="Total Revenue",
         labels={"Total Revenue": "Revenue ($)"},
         title="Quarterly Revenue & YoY Growth"
     )
-
-    # add YoY trace for rows that have a value
-    yoy_mask = df["YoY Rev %"].notna()
+    mask = df["YoY Rev %"].notna()
     fig.add_trace(
         go.Scatter(
-            x=df["Quarter"][yoy_mask],
-            y=df["YoY Rev %"][yoy_mask],
+            x=df["Quarter"][mask],
+            y=df["YoY Rev %"][mask],
             name="YoY Rev %",
             mode="lines+markers",
             yaxis="y2",
             line=dict(color="#FFA500")
         )
     )
-
     fig.update_layout(
-        yaxis2=dict(
-            overlaying="y",
-            side="right",
-            title="YoY %",
-            tickformat=".0%"
-        ),
-        xaxis_title="",                # cleaner look
+        yaxis2=dict(overlaying="y", side="right", title="YoY %", tickformat=".0%"),
         bargap=0.25,
+        xaxis_title=""
     )
     st.plotly_chart(fig, use_container_width=True)
 
+def plot_stock_price_with_sma(hist_df: pd.DataFrame) -> None:
+    """Close price with 50- and 200-day simple moving averages."""
+    df = hist_df.copy()
+    df["50SMA"]  = df["Close"].rolling(50).mean()
+    df["200SMA"] = df["Close"].rolling(200).mean()
+    fig = px.line(
+        df, x=df.index, y=["Close", "50SMA", "200SMA"],
+        labels={"value": "Price (USD)", "variable": "Series"},
+        title="Price with 50/200-day SMA"
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-# ── Dynamic Peer Comparables ────────────────────────────────────────
-SP500_URL = (
-    "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/master/data/constituents.csv"
-)
-
-FALLBACK_PEERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "META"]  # used only if fetch fails
-
+# ── Dynamic Peer Comparables ───────────────────────────────────────
+SP500_URL = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/master/data/constituents.csv"
+FALLBACK_PEERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "META"]
 
 @st.cache_data(show_spinner=False)
 def get_sp500() -> pd.DataFrame:
-    """
-    Download the S&P-500 constituents list.
-    Return an empty DF on any failure.
-    """
     try:
         df = pd.read_csv(SP500_URL)
-        df.columns = df.columns.str.title()  # normalize caps
+        df.columns = df.columns.str.title()
         return df
     except Exception:
         return pd.DataFrame()
 
-
 def show_peer_comparison(focus_ticker: str, n_peers: int = 5) -> None:
-    """
-    Build comparables table; falls back to a static list if online data unavailable.
-    """
     try:
         focus_info = yf.Ticker(focus_ticker).info
         sector     = focus_info.get("sector")
@@ -177,21 +153,14 @@ def show_peer_comparison(focus_ticker: str, n_peers: int = 5) -> None:
         sector = None
 
     sp_df = get_sp500()
-
-    # choose peers
-    if (
-        sector
-        and not sp_df.empty
-        and {"Sector", "Symbol"}.issubset(sp_df.columns)
-    ):
-        sector_peers = sp_df.loc[sp_df["Sector"] == sector, "Symbol"].tolist()
-        peers = [t for t in sector_peers if t != focus_ticker][: n_peers]
+    if sector and not sp_df.empty and {"Sector", "Symbol"}.issubset(sp_df.columns):
+        peers = sp_df.loc[sp_df["Sector"] == sector, "Symbol"].tolist()
+        peers = [t for t in peers if t != focus_ticker][:n_peers]
     else:
-        peers = FALLBACK_PEERS[: n_peers]
+        peers = FALLBACK_PEERS[:n_peers]
 
     tickers = [focus_ticker] + peers
     rows = []
-
     for t in tickers:
         try:
             inf = yf.Ticker(t).info
@@ -201,7 +170,7 @@ def show_peer_comparison(focus_ticker: str, n_peers: int = 5) -> None:
                 "Ticker": t,
                 "Market Cap ($B)": f"{mc/1e9:,.2f}",
                 "P/E (LTM)": f"{inf.get('trailingPE',0):.2f}" if inf.get("trailingPE") else "N/A",
-                "P/E (NTM)": f"{inf.get('forwardPE',0):.2f}"  if inf.get("forwardPE")  else "N/A",
+                "P/E (NTM)": f"{inf.get('forwardPE',0):.2f}"  if inf.get("forwardPE") else "N/A",
                 "EV/EBITDA": f"{inf.get('enterpriseValue',0)/ebt:,.2f}" if ebt else "N/A",
                 "FCF Yield (%)": (
                     f"{inf.get('freeCashflow',0)/mc*100:,.2f}"
@@ -210,9 +179,7 @@ def show_peer_comparison(focus_ticker: str, n_peers: int = 5) -> None:
             })
         except Exception:
             continue
-
     st.dataframe(pd.DataFrame(rows), use_container_width=True)
-
 
 # ── Prophet Forecast ───────────────────────────────────────────────
 def forecast_stock_price(hist_df: pd.DataFrame) -> None:
@@ -222,8 +189,7 @@ def forecast_stock_price(hist_df: pd.DataFrame) -> None:
     model.fit(df)
     future = model.make_future_dataframe(periods=30)
     fc     = model.predict(future)
-    fig    = model.plot(fc)
-    st.pyplot(fig)
+    st.pyplot(model.plot(fc))
 
 # ── News Sentiment ────────────────────────────────────────────────
 def get_news_sentiment(ticker: str) -> pd.DataFrame:
@@ -254,23 +220,21 @@ def ask_analyst_question(question: str, info: dict) -> str:
     resp = client.chat.completions.create(
         model="gpt-4",
         messages=[
-            {"role":"system", "content":"You are a helpful financial analyst assistant."},
-            {"role":"user",   "content":prompt}
+            {"role": "system", "content": "You are a helpful financial analyst assistant."},
+            {"role": "user",   "content": prompt}
         ],
         temperature=0.4,
         max_tokens=300
     )
     return resp.choices[0].message.content
 
-# ── Main UI ─────────────────────────────────────────────────────────
+# ── Main UI ────────────────────────────────────────────────────────
 ticker = st.text_input("Enter ticker (e.g., AAPL):", value="AAPL").upper()
 
-# fetch when the button is pressed
 if st.button("Load / Refresh Data"):
     try:
         with st.spinner("Fetching company data…"):
             info, fin, hist = get_company_data(ticker)
-        # keep results across reruns
         st.session_state.loaded = True
         st.session_state.info   = info
         st.session_state.fin    = fin
@@ -279,7 +243,6 @@ if st.button("Load / Refresh Data"):
         st.session_state.loaded = False
         st.error(f"Data fetch failed: {e}")
 
-# render dashboard only if we have data
 if st.session_state.loaded:
     info = st.session_state.info
     fin  = st.session_state.fin
@@ -304,13 +267,10 @@ if st.session_state.loaded:
     st.subheader("Latest News Sentiment")
     st.dataframe(get_news_sentiment(ticker), use_container_width=True)
 
-      # ── Ask-the-Analyst ────────────────────────────────────────────
+    # ── Ask-the-Analyst ───────────────────────────────────────────
     st.subheader("Ask the Analyst")
     user_q = st.text_input("Type a financial question:", key="analyst_q")
     if user_q:
         with st.spinner("Analyzing…"):
             answer = ask_analyst_question(user_q, info)
-            st.markdown(answer)   # keeps paragraphs / bullet formatting
-
-
-
+            st.markdown(answer)
