@@ -33,18 +33,6 @@ col1, col2, col3 = st.columns([1, 0.5, 1])
 with col2:
     st.image(logo, width=300)
 
-# Optional short description underneath, still centered
-with col2:
-    st.markdown(
-        """
-        <p style="font-size:16px; color:gray; margin-top:10px;">
-            An AI-driven financial analysis platform designed for investors and analysts.<br>
-            Quickly explore revenue trends, margin profiles, valuation metrics, peer benchmarks,<br>
-            30-day forecasts, and engage in an interactive analyst Q&A.
-        </p>
-        """,
-        unsafe_allow_html=True
-    )
 
 # ── Keys / Secrets ─────────────────────────────────────────────────
 openai.api_key = os.getenv("OPENAI_API_KEY")
