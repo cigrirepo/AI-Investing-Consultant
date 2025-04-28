@@ -286,17 +286,13 @@ if st.session_state.loaded:
     st.subheader("Latest News Sentiment")
     st.dataframe(get_news_sentiment(ticker), use_container_width=True)
 
+      # ── Ask-the-Analyst ────────────────────────────────────────────
     st.subheader("Ask the Analyst")
-    user_q = st.text_input("Type a financial question:")
+    user_q = st.text_input("Type a financial question:", key="analyst_q")
     if user_q:
         with st.spinner("Analyzing…"):
-            st.write(ask_analyst_question(user_q, info))
+            answer = ask_analyst_question(user_q, info)
+            st.markdown(answer)   # keeps paragraphs / bullet formatting
 
 
-     # ── Ask‑the‑Analyst ────────────────────────────────────────────
-    st.subheader("Ask the Analyst")
-    user_q = st.text_input("Type a financial question:")
-    if user_q:
-        with st.spinner("Analyzing…"):
-            answer = ask_analyst_question(user_q, info)   # ← pass info
-            st.write(answer)                              # ← closed “)”
+
