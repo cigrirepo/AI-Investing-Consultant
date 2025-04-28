@@ -23,40 +23,28 @@ if "loaded" not in st.session_state:
     st.session_state.fin    = None
     st.session_state.hist   = None
 
- # ── Streamlit Page Config ───────────────────────────────────────────
- st.set_page_config(page_title="Senzu Financial Insights", layout="wide")
--
--# ── Branding & Description ──────────────────────────────────────────
--st.title("Senzu")
--st.markdown(
--    """
--**Senzu** is an AI-driven financial analysis platform designed for investors and analysts.  
--Quickly explore company revenue trends, margin profiles, valuation metrics, peer benchmarks,  
--30-day price forecasts, and engage with an interactive analyst Q&A powered by LLMs.
--"""
--)
-+# ── Branding & Logo ───────────────────────────────────────────────────
-+from PIL import Image
-+
-+# Centered logo (no text title)
-+logo = Image.open("senzu_logo.png")
-+col1, col2, col3 = st.columns([1,2,1])
-+with col2:
-+    st.image(logo, width=300)  # bump width to taste
-+
-+# Optional short description underneath, still centered
-+with col2:
-+    st.markdown(
-+        """
-+        <p style="font-size:16px; color:gray; margin-top:10px;">
-+            An AI-driven financial analysis platform designed for investors and analysts.<br>
-+            Quickly explore revenue trends, margin profiles, valuation metrics, peer benchmarks,<br>
-+            30-day forecasts, and engage in an interactive analyst Q&A.
-+        </p>
-+        """,
-+        unsafe_allow_html=True
-+    )
+# ── Streamlit Page Config ───────────────────────────────────────────
+st.set_page_config(page_title="Senzu Financial Insights", layout="wide")
 
+# ── Branding & Logo ─────────────────────────────────────────────────
+# Centered logo (no text title)
+logo = Image.open("senzu_logo.png")
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.image(logo, width=300)
+
+# Optional short description underneath, still centered
+with col2:
+    st.markdown(
+        """
+        <p style="font-size:16px; color:gray; margin-top:10px;">
+            An AI-driven financial analysis platform designed for investors and analysts.<br>
+            Quickly explore revenue trends, margin profiles, valuation metrics, peer benchmarks,<br>
+            30-day forecasts, and engage in an interactive analyst Q&A.
+        </p>
+        """,
+        unsafe_allow_html=True
+    )
 
 # ── Keys / Secrets ─────────────────────────────────────────────────
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -176,7 +164,7 @@ def plot_stock_price_with_sma(hist_df: pd.DataFrame) -> None:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-# ── Dynamic Peer Comparables ────────────────────────────────────────
+# ── Dynamic Peer Comparables ───────────────────────────────────────
 SP500_URL = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/master/data/constituents.csv"
 FALLBACK_PEERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "META"]
 
@@ -245,7 +233,7 @@ def get_news_sentiment(ticker: str) -> pd.DataFrame:
         rows.append({
             "Headline": title,
             "Polarity": round(pol,2),
-            "Label": "Positive" if pol>0.1 else "Neutral" if pol>=-0.1 else "Negative"
+            "Label": "Positive" if pol>0.1 else "Neutral" if pol>= -0.1 else "Negative"
         })
     return pd.DataFrame(rows)
 
@@ -254,7 +242,7 @@ def ask_analyst_question(question: str, info: dict) -> str:
     client = OpenAI(api_key=openai.api_key)
     context = (
         f"Business Summary: {info.get('longBusinessSummary')}\n"
-        f"Revenue: {info.get('totalRevenue')}\n"
+        f"Revenue: {info.get('totalRevenue')}\n" 
         f"EBITDA: {info.get('ebitda')}\n"
         f"Cash: {info.get('totalCash')}\n"
         f"Debt: {info.get('totalDebt')}"
@@ -264,7 +252,7 @@ def ask_analyst_question(question: str, info: dict) -> str:
         model="gpt-4",
         messages=[
             {"role":"system","content":"You are a helpful financial analyst assistant."},
-            {"role":"user",   "content":prompt}
+            {"role":"user",  "content":prompt}
         ],
         temperature=0.4,
         max_tokens=300
@@ -310,7 +298,6 @@ if st.session_state.loaded:
     st.subheader("Latest News Sentiment")
     st.dataframe(get_news_sentiment(ticker), use_container_width=True)
 
-    # ── Ask-the-Analyst ───────────────────────────────────────────
     st.subheader("Ask the Analyst")
     user_q = st.text_input("Type a financial question:", key="analyst_q")
     if user_q:
