@@ -31,7 +31,7 @@ st.set_page_config(page_title="Senzu Financial Insights", layout="wide")
 logo = Image.open("senzu_logo.png")
 col1, col2, col3 = st.columns([1, 8, 1])
 with col2:
-    st.image(logo, width=300)
+    st.image(logo, width=200)
 
 
 # ── Keys / Secrets ─────────────────────────────────────────────────
