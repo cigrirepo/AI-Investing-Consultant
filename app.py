@@ -95,17 +95,11 @@ def plot_revenue_and_growth(fin_df: pd.DataFrame) -> None:
     Quarterly revenue bars + YoY % line.
     Sorted chronologically, with clean quarter labels and proper % formatting.
     """
-    # isolate and drop NaN revenues
     df = fin_df[["Total Revenue"]].dropna().copy()
-
-    # convert PeriodIndex → timestamps and sort
     if isinstance(df.index, pd.PeriodIndex):
         df.index = df.index.to_timestamp(how="end")
     df = df.sort_index()
-
-    # quarter labels
     df["Quarter"]   = df.index.to_period("Q").astype(str)
-    # year-over-year %
     df["YoY Rev %"] = df["Total Revenue"].pct_change(4) * 100
 
     fig = px.bar(
@@ -116,7 +110,6 @@ def plot_revenue_and_growth(fin_df: pd.DataFrame) -> None:
         title="Quarterly Revenue & YoY Growth"
     )
 
-    # plot YoY only where available
     mask = df["YoY Rev %"].notna()
     fig.add_trace(
         go.Scatter(
@@ -134,13 +127,12 @@ def plot_revenue_and_growth(fin_df: pd.DataFrame) -> None:
             overlaying="y",
             side="right",
             title="YoY %",
-            tickformat=".0f",     # no percent auto-scaling
-            ticksuffix="%"        # append percent sign
+            tickformat=".0f",
+            ticksuffix="%"
         ),
         bargap=0.25,
         xaxis_title=""
     )
-
     st.plotly_chart(fig, use_container_width=True)
 
 def plot_stock_price_with_sma(hist_df: pd.DataFrame) -> None:
@@ -156,12 +148,57 @@ def plot_stock_price_with_sma(hist_df: pd.DataFrame) -> None:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-# ── (rest of your file remains unchanged) ─────────────────────────
+# ── Dynamic Peer Comparables ────────────────────────────────────────
+SP500_URL = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/master/data/constituents.csv"
+FALLBACK_PEERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "META"]
 
+@st.cache_data(show_spinner=False)
+def get_sp500() -> pd.DataFrame:
+    try:
+        df = pd.read_csv(SP500_URL)
+        df.columns = df.columns.str.title()
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+def show_peer_comparison(focus_ticker: str, n_peers: int = 5) -> None:
+    try:
+        sector = yf.Ticker(focus_ticker).info.get("sector")
+    except Exception:
+        sector = None
+
+    sp_df = get_sp500()
+    if sector and not sp_df.empty and {"Sector","Symbol"}.issubset(sp_df.columns):
+        peers = sp_df.loc[sp_df["Sector"] == sector, "Symbol"].tolist()
+        peers = [t for t in peers if t != focus_ticker][:n_peers]
+    else:
+        peers = FALLBACK_PEERS[:n_peers]
+
+    tickers = [focus_ticker] + peers
+    rows = []
+    for t in tickers:
+        try:
+            inf = yf.Ticker(t).info
+            mc  = inf.get("marketCap") or 0
+            ebt = inf.get("ebitda")    or 0
+            rows.append({
+                "Ticker": t,
+                "Market Cap ($B)": f"{mc/1e9:,.2f}",
+                "P/E (LTM)":       f"{inf.get('trailingPE',0):.2f}" if inf.get("trailingPE") else "N/A",
+                "P/E (NTM)":       f"{inf.get('forwardPE',0):.2f}" if inf.get("forwardPE") else "N/A",
+                "EV/EBITDA":       f"{inf.get('enterpriseValue',0)/ebt:,.2f}" if ebt else "N/A",
+                "FCF Yield (%)":   (
+                    f"{inf.get('freeCashflow',0)/mc*100:,.2f}"
+                    if inf.get("freeCashflow") and mc else "N/A"
+                )
+            })
+        except Exception:
+            continue
+    st.dataframe(pd.DataFrame(rows), use_container_width=True)
 
 # ── Prophet Forecast ───────────────────────────────────────────────
 def forecast_stock_price(hist_df: pd.DataFrame) -> None:
-    df = hist_df.reset_index()[["Date", "Close"]].rename(columns={"Date":"ds", "Close":"y"})
+    df = hist_df.reset_index()[["Date", "Close"]].rename(columns={"Date":"ds","Close":"y"})
     df["ds"] = pd.to_datetime(df["ds"]).dt.tz_localize(None)
     model = Prophet(daily_seasonality=True)
     model.fit(df)
@@ -175,12 +212,12 @@ def get_news_sentiment(ticker: str) -> pd.DataFrame:
     arts = requests.get(url).json().get("articles", [])[:5]
     rows = []
     for art in arts:
-        title = art.get("title", "")
+        title = art.get("title","")
         pol   = TextBlob(title).sentiment.polarity
         rows.append({
             "Headline": title,
-            "Polarity": round(pol, 2),
-            "Label": "Positive" if pol > 0.1 else "Neutral" if pol >= -0.1 else "Negative"
+            "Polarity": round(pol,2),
+            "Label": "Positive" if pol>0.1 else "Neutral" if pol>=-0.1 else "Negative"
         })
     return pd.DataFrame(rows)
 
@@ -198,8 +235,8 @@ def ask_analyst_question(question: str, info: dict) -> str:
     resp = client.chat.completions.create(
         model="gpt-4",
         messages=[
-            {"role": "system", "content": "You are a helpful financial analyst assistant."},
-            {"role": "user",   "content": prompt}
+            {"role":"system","content":"You are a helpful financial analyst assistant."},
+            {"role":"user",   "content":prompt}
         ],
         temperature=0.4,
         max_tokens=300
