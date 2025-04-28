@@ -90,41 +90,59 @@ Sector: {info.get('sector')} | Industry: {info.get('industry')}
 # ── Plot Helpers ───────────────────────────────────────────────────
 def plot_revenue_and_growth(fin_df: pd.DataFrame) -> None:
     """
-    Bar = revenue, Line = YoY %. Ignores NaNs so line doesn’t drop to zero.
+    Bar = revenue, Line = YoY %. Uses real fiscal quarters for the x-axis
+    and only draws the YoY line where data exist.
     """
-    df = fin_df.copy()
-    df = df.dropna(subset=["Total Revenue"])
-    df.index = df.index.astype(str)
+    # Ensure proper order and remove missing revenue rows
+    df = (
+        fin_df[["Total Revenue"]]
+        .dropna()
+        .copy()
+    )
 
-    fig = px.bar(df, x=df.index, y="Total Revenue",
-                 labels={"Total Revenue": "Revenue ($)"},
-                 title="Quarterly Revenue & YoY Growth")
+    # convert PeriodIndex -> Timestamp (end of quarter) for Plotly
+    if isinstance(df.index, pd.PeriodIndex):
+        df.index = df.index.to_timestamp(how="end")
 
-    # Only plot YoY where it exists
-    mask = df["YoY Rev %"].notna()
+    # Create neat quarter labels e.g. 2024-Q1
+    df["Quarter"] = df.index.to_period("Q").astype(str)
+
+    # Calculate YoY %
+    df["YoY Rev %"] = df["Total Revenue"].pct_change(4) * 100
+
+    fig = px.bar(
+        df,
+        x="Quarter",
+        y="Total Revenue",
+        labels={"Total Revenue": "Revenue ($)"},
+        title="Quarterly Revenue & YoY Growth"
+    )
+
+    # add YoY trace for rows that have a value
+    yoy_mask = df["YoY Rev %"].notna()
     fig.add_trace(
         go.Scatter(
-            x=df.index[mask],
-            y=df["YoY Rev %"][mask],
+            x=df["Quarter"][yoy_mask],
+            y=df["YoY Rev %"][yoy_mask],
             name="YoY Rev %",
             mode="lines+markers",
             yaxis="y2",
-            line=dict(color="orange")
+            line=dict(color="#FFA500")
         )
     )
+
     fig.update_layout(
-        yaxis2=dict(overlaying="y", side="right", title="YoY %", tickformat=".0%"),
-        xaxis_tickangle=0
+        yaxis2=dict(
+            overlaying="y",
+            side="right",
+            title="YoY %",
+            tickformat=".0%"
+        ),
+        xaxis_title="",                # cleaner look
+        bargap=0.25,
     )
     st.plotly_chart(fig, use_container_width=True)
 
-def plot_stock_price_with_sma(hist_df: pd.DataFrame) -> None:
-    df = hist_df.copy()
-    df["50SMA"]  = df["Close"].rolling(50).mean()
-    df["200SMA"] = df["Close"].rolling(200).mean()
-    fig = px.line(df, x=df.index, y=["Close", "50SMA", "200SMA"],
-                  labels={"value":"Price (USD)", "variable":"Series"})
-    st.plotly_chart(fig, use_container_width=True)
 
 # ── Dynamic Peer Comparables ────────────────────────────────────────
 SP500_URL = (
