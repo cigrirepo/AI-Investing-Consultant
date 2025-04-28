@@ -23,29 +23,40 @@ if "loaded" not in st.session_state:
     st.session_state.fin    = None
     st.session_state.hist   = None
 
-# ── Streamlit Page Config ───────────────────────────────────────────
-st.set_page_config(page_title="Senzu Financial Insights", layout="wide")
+ # ── Streamlit Page Config ───────────────────────────────────────────
+ st.set_page_config(page_title="Senzu Financial Insights", layout="wide")
+-
+-# ── Branding & Description ──────────────────────────────────────────
+-st.title("Senzu")
+-st.markdown(
+-    """
+-**Senzu** is an AI-driven financial analysis platform designed for investors and analysts.  
+-Quickly explore company revenue trends, margin profiles, valuation metrics, peer benchmarks,  
+-30-day price forecasts, and engage with an interactive analyst Q&A powered by LLMs.
+-"""
+-)
++# ── Branding & Logo ───────────────────────────────────────────────────
++from PIL import Image
++
++# Centered logo (no text title)
++logo = Image.open("senzu_logo.png")
++col1, col2, col3 = st.columns([1,2,1])
++with col2:
++    st.image(logo, width=300)  # bump width to taste
++
++# Optional short description underneath, still centered
++with col2:
++    st.markdown(
++        """
++        <p style="font-size:16px; color:gray; margin-top:10px;">
++            An AI-driven financial analysis platform designed for investors and analysts.<br>
++            Quickly explore revenue trends, margin profiles, valuation metrics, peer benchmarks,<br>
++            30-day forecasts, and engage in an interactive analyst Q&A.
++        </p>
++        """,
++        unsafe_allow_html=True
++    )
 
-# ── Branding & Logo (centered) ──────────────────────────────────────
-logo = Image.open("senzu_logo.png")
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.image(logo, width=200)
-
-# ── Title & Description ─────────────────────────────────────────────
-st.markdown(
-    """
-    <div style="text-align: center; margin-bottom: 20px;">
-        <h1 style="font-size: 40px; font-weight: bold; margin: 0;">Senzu</h1>
-        <p style="font-size: 16px; color: gray; max-width: 600px; margin: 5px auto 0;">
-            An AI-driven financial analysis platform designed for investors and analysts.<br>
-            Quickly explore company revenue trends, margin profiles, valuation metrics, peer benchmarks,<br>
-            30-day price forecasts, and engage with an interactive analyst Q&A powered by LLMs.
-        </p>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
 
 # ── Keys / Secrets ─────────────────────────────────────────────────
 openai.api_key = os.getenv("OPENAI_API_KEY")
