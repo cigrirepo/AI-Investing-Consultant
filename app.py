@@ -28,20 +28,35 @@ st.set_page_config(page_title="Senzu Financial Insights", layout="wide")
 
 from PIL import Image
 
-# ── Branding & Logo ───────────────────────────────────────────────────
-logo = Image.open("senzu_logo.png")
-st.image(logo, width=150)
-
+# ── Branding & Logo (no extra gap) ──────────────────────────────────────────────
 st.markdown(
     """
-    <div style="max-width:900px; font-size:16px; color:#CCCCCC; line-height:1.5; margin-top:10px;">
-      <strong>Senzu</strong> is an AI-driven financial analysis platform designed for investors and analysts. 
-      Quickly explore company revenue trends, margin profiles, valuation metrics, peer benchmarks, 
-      30-day price forecasts, and engage with an interactive analyst Q&A powered by LLMs.
+    <div style="
+      display: flex; 
+      flex-direction: column; 
+      align-items: flex-start; 
+      margin-bottom: 20px;
+    ">
+      <img 
+        src="senzu_logo.png" 
+        style="width:150px; margin:0 0 0 0; padding:0;" 
+      />
+      <div style="
+        margin:0; 
+        padding:4px 0 0 0; 
+        font-size:16px; 
+        color:#CCCCCC; 
+        line-height:1.4;
+      ">
+        <strong>Senzu</strong> is an AI-driven financial analysis platform designed for investors and analysts. 
+        Quickly explore company revenue trends, margin profiles, valuation metrics, peer benchmarks, 
+        30-day price forecasts, and engage with an interactive analyst Q&A powered by LLMs.
+      </div>
     </div>
     """,
     unsafe_allow_html=True,
 )
+
 
 
 
