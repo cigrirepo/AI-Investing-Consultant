@@ -28,22 +28,28 @@ if "loaded" not in st.session_state:
 st.set_page_config(page_title="Senzu Financial Insights", layout="wide")
 
 # ── Top-Left Logo + Branding ───────────────────────────────────────
+from pathlib import Path
+
 logo_path = Path(__file__).parent / "senzu_logo.png"
-col_logo, col_brand = st.columns([1, 6], gap="small")
+# widen the logo column (first number) to allocate more space
+col_logo, col_brand = st.columns([2, 10], gap="small")
+
 with col_logo:
     if logo_path.exists():
-        st.image(str(logo_path), width=48)
+        # bump the displayed size up
+        st.image(str(logo_path), width=120)
     else:
-        st.warning("⚠️ logo not found")
+        st.warning("⚠️ senzu_logo.png not found in your repo")
 
 with col_brand:
     st.markdown(
         """
         <div style="margin:0; padding:0;">
-          <span style="font-size:1.75rem; font-weight:600; vertical-align:middle;">Senzu</span><br>
-          <span style="font-size:0.9rem; color:#AAA;">
-            AI-driven financial analysis for investors & analysts. Explore revenue & margin trends, valuation metrics,
-            peer benchmarks, 30-day forecasts, and ask your own analyst-style questions.
+          <span style="font-size:2rem; font-weight:600; vertical-align:middle;">Senzu</span><br>
+          <span style="font-size:1rem; color:#AAA;">
+            AI-driven financial analysis for investors & analysts.<br>
+            Explore revenue & margin trends, valuation metrics, peer benchmarks, 30-day forecasts,<br>
+            and ask your own analyst-style questions.
           </span>
         </div>
         """,
@@ -51,6 +57,7 @@ with col_brand:
     )
 
 st.markdown("---")
+
 
 # ── Keys / Secrets ─────────────────────────────────────────────────
 openai.api_key = os.getenv("OPENAI_API_KEY")
