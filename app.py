@@ -14,6 +14,12 @@ import requests
 import openai                # ← now imported before we set the key
 from openai import OpenAI
 import streamlit as st
+# ── session defaults ───────────────────────────────────────────────
+if "loaded" not in st.session_state:
+    st.session_state.loaded = False
+    st.session_state.info   = None
+    st.session_state.fin    = None
+    st.session_state.hist   = None
 
 # ── Streamlit Page Config ───────────────────────────────────────────
 st.set_page_config(page_title="AI Financial Insights Dashboard", layout="wide")
@@ -238,16 +244,28 @@ def ask_analyst_question(question: str, info: dict) -> str:
     )
     return resp.choices[0].message.content
 
-# ── Main UI ───────────────────────────────────────────────────────
+# ── Main UI ─────────────────────────────────────────────────────────
 ticker = st.text_input("Enter ticker (e.g., AAPL):", value="AAPL").upper()
 
-if st.button("Load Data"):
+# fetch when the button is pressed
+if st.button("Load / Refresh Data"):
     try:
         with st.spinner("Fetching company data…"):
             info, fin, hist = get_company_data(ticker)
+        # keep results across reruns
+        st.session_state.loaded = True
+        st.session_state.info   = info
+        st.session_state.fin    = fin
+        st.session_state.hist   = hist
     except Exception as e:
+        st.session_state.loaded = False
         st.error(f"Data fetch failed: {e}")
-        st.stop()
+
+# render dashboard only if we have data
+if st.session_state.loaded:
+    info = st.session_state.info
+    fin  = st.session_state.fin
+    hist = st.session_state.hist
 
     st.subheader("Investment Thesis")
     with st.spinner("Generating thesis…"):
@@ -256,17 +274,24 @@ if st.button("Load Data"):
     st.subheader("Revenue & YoY Growth")
     plot_revenue_and_growth(fin)
 
-    st.subheader("Price with 50/200‑day SMA")
+    st.subheader("Price with 50/200-day SMA")
     plot_stock_price_with_sma(hist)
 
     st.subheader("Peer Comparables")
     show_peer_comparison(ticker)
 
-    st.subheader("30‑Day Price Forecast")
+    st.subheader("30-Day Price Forecast")
     forecast_stock_price(hist)
 
     st.subheader("Latest News Sentiment")
     st.dataframe(get_news_sentiment(ticker), use_container_width=True)
+
+    st.subheader("Ask the Analyst")
+    user_q = st.text_input("Type a financial question:")
+    if user_q:
+        with st.spinner("Analyzing…"):
+            st.write(ask_analyst_question(user_q, info))
+
 
      # ── Ask‑the‑Analyst ────────────────────────────────────────────
     st.subheader("Ask the Analyst")
