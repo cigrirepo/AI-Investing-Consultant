@@ -27,36 +27,32 @@ if "loaded" not in st.session_state:
 # ── Streamlit Page Config ──────────────────────────────────────────
 st.set_page_config(page_title="Senzu Financial Insights", layout="wide")
 
-# ── Top-Left Logo + Branding ───────────────────────────────────────
 from pathlib import Path
 
+# ── Top-Left Logo + Single-Line Branding ─────────────────────────────
 logo_path = Path(__file__).parent / "senzu_logo.png"
-# widen the logo column (first number) to allocate more space
-col_logo, col_brand = st.columns([2, 10], gap="small")
+# Give even more weight to the logo column
+col_logo, col_brand = st.columns([3, 12], gap="small")
 
 with col_logo:
     if logo_path.exists():
-        # bump the displayed size up
-        st.image(str(logo_path), width=120)
+        # Make the logo really pop
+        st.image(str(logo_path), width=200)
     else:
-        st.warning("⚠️ senzu_logo.png not found in your repo")
+        st.warning("⚠️ senzu_logo.png not found in repo")
 
 with col_brand:
     st.markdown(
         """
-        <div style="margin:0; padding:0;">
-          <span style="font-size:2rem; font-weight:600; vertical-align:middle;">Senzu</span><br>
-          <span style="font-size:1rem; color:#AAA;">
-            AI-driven financial analysis for investors & analysts.<br>
-            Explore revenue & margin trends, valuation metrics, peer benchmarks, 30-day forecasts,<br>
-            and ask your own analyst-style questions.
-          </span>
+        <div style="font-size:1rem; color:#AAA; white-space:nowrap; overflow-x:auto;">
+          AI-driven financial analysis for investors & analysts — explore revenue & margin trends, valuation metrics, peer benchmarks, 30-day forecasts, and ask your own analyst-style questions.
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 st.markdown("---")
+
 
 
 # ── Keys / Secrets ─────────────────────────────────────────────────
