@@ -1,4 +1,4 @@
-# app.py  ── AI-Powered Financial Insights Dashboard
+# app.py  ── Senzu Financial Insights Dashboard
 # ================================================
 import os
 import sqlite3
@@ -23,8 +23,17 @@ if "loaded" not in st.session_state:
     st.session_state.hist   = None
 
 # ── Streamlit Page Config ───────────────────────────────────────────
-st.set_page_config(page_title="AI Financial Insights Dashboard", layout="wide")
-st.title("AI-Powered Financial Insights Dashboard")
+st.set_page_config(page_title="Senzu Financial Insights", layout="wide")
+
+# ── Branding & Description ──────────────────────────────────────────
+st.title("Senzu")
+st.markdown(
+    """
+**Senzu** is an AI-driven financial analysis platform designed for investors and analysts.  
+Quickly explore company revenue trends, margin profiles, valuation metrics, peer benchmarks,  
+30-day price forecasts, and engage with an interactive analyst Q&A powered by LLMs.
+"""
+)
 
 # ── Keys / Secrets ─────────────────────────────────────────────────
 openai.api_key = os.getenv("OPENAI_API_KEY")
